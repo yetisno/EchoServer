@@ -8,6 +8,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by yeti on 15/7/27.
@@ -28,8 +29,9 @@ public class EchoServer {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
+					AtomicLong atomicLong = new AtomicLong(0);
 					try {
-						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 5500));
+						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6655));
 						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 						while (true) {
 							if (selector.select(1000) == 0)
@@ -38,14 +40,16 @@ public class EchoServer {
 							for (SelectionKey key : keys) {
 								keys.remove(key);
 								if (key.isAcceptable()) {
+									long id = atomicLong.getAndIncrement();
 									SocketChannel socketChannel = serverSocketChannel.accept();
 									socketChannel.configureBlocking(false);
-									socketChannel.register(selector, SelectionKey.OP_READ, socketChannel);
-									System.out.println("Linked");
+									socketChannel.register(selector, SelectionKey.OP_READ, id);
+									System.out.println(String.format("%d: Linked", id));
 								}
 								if (key.isReadable()) {
 									ByteBuffer buffer = ByteBuffer.allocate(1024);
-									SocketChannel socketChannel = ((SocketChannel) key.attachment());
+									SocketChannel socketChannel = ((SocketChannel) key.channel());
+									long id = ((long) key.attachment());
 									int length = socketChannel.read(buffer);
 									if (length < 0) {
 										key.cancel();
@@ -57,7 +61,7 @@ public class EchoServer {
 									for (int i = 0; i < length; i++) {
 										data[i] = from[i];
 									}
-									System.out.println(new String(data));
+									System.out.println(String.format("%d: %s", id, new String(data)));
 									buffer.flip();
 									socketChannel.write(buffer);
 								}
