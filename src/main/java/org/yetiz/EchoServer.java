@@ -56,13 +56,15 @@ public class EchoServer {
 										socketChannel.close();
 										continue;
 									}
-									byte[] from = buffer.array();
+									byte[] from = new String(buffer.array()).toUpperCase().getBytes();
+									length = from.length;
 									byte[] data = new byte[length];
 									for (int i = 0; i < length; i++) {
 										data[i] = from[i];
 									}
+									buffer = ByteBuffer.wrap(data);
 									System.out.println(String.format("%d: %s", id, new String(data)));
-									buffer.flip();
+//									buffer.flip();
 									socketChannel.write(buffer);
 								}
 							}
