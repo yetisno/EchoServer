@@ -17,10 +17,6 @@ public class EchoServer {
 	Selector selector;
 	ServerSocketChannel serverSocketChannel;
 
-	public static void main(String... args) {
-		new EchoServer();
-	}
-
 	public EchoServer() {
 		try {
 			selector = Selector.open();
@@ -31,7 +27,7 @@ public class EchoServer {
 				public void run() {
 					AtomicLong atomicLong = new AtomicLong(0);
 					try {
-						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6655));
+						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6665));
 						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 						while (true) {
 							if (selector.select(1000) == 0)
@@ -47,25 +43,24 @@ public class EchoServer {
 									System.out.println(String.format("%d: Linked", id));
 								}
 								if (key.isReadable()) {
-									ByteBuffer buffer = ByteBuffer.allocate(512);
-									SocketChannel socketChannel = ((SocketChannel) key.channel());
-									long id = ((long) key.attachment());
-									int length = socketChannel.read(buffer);
-									if (length < 0) {
-										key.cancel();
-										socketChannel.close();
-										continue;
+									try {
+										ByteBuffer buffer = ByteBuffer.allocate(10240);
+										SocketChannel socketChannel = ((SocketChannel) key.channel());
+										long id = ((long) key.attachment());
+										int length = socketChannel.read(buffer);
+										if (length < 0) {
+											key.cancel();
+											socketChannel.close();
+											continue;
+										}
+										buffer.flip();
+										byte[] data = new byte[length];
+										System.arraycopy(buffer.array(), 0, data, 0, length);
+										System.out.println(String.format("%d: %s", id, new String(data)));
+										socketChannel.write(buffer);
+									} catch (Throwable t) {
+
 									}
-									byte[] from = buffer.array();
-									byte[] data = new byte[length];
-									for (int i = 0; i < length; i++) {
-										data[i] = from[i];
-									}
-									data = new String(data).toUpperCase().getBytes();
-									buffer = ByteBuffer.wrap(data);
-									System.out.println(String.format("%d: %s", id, new String(data)));
-//									buffer.flip();
-									socketChannel.write(buffer);
 								}
 							}
 						}
@@ -75,5 +70,9 @@ public class EchoServer {
 			}).start();
 		} catch (IOException e) {
 		}
+	}
+
+	public static void main(String... args) {
+		new EchoServer();
 	}
 }
