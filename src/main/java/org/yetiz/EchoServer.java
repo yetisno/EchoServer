@@ -27,7 +27,7 @@ public class EchoServer {
 				public void run() {
 					AtomicLong atomicLong = new AtomicLong(0);
 					try {
-						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6665));
+						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6655));
 						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 						while (true) {
 							if (selector.select(1000) == 0)
