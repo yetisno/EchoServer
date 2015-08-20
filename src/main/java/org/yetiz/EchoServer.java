@@ -7,7 +7,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Set;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EchoServer {
 	Selector selector;
 	ServerSocketChannel serverSocketChannel;
+	AtomicLong count = new AtomicLong(1);
 
 	public EchoServer() {
 		try {
@@ -26,14 +27,16 @@ public class EchoServer {
 				@Override
 				public void run() {
 					AtomicLong atomicLong = new AtomicLong(0);
+					ByteBuffer buffer = null;
 					try {
 						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 10315));
 						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 						while (true) {
 							if (selector.select(1000) == 0)
 								continue;
-							Set<SelectionKey> keys = selector.selectedKeys();
-							for (SelectionKey key : keys) {
+							Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+							while (keys.hasNext()) {
+								SelectionKey key = keys.next();
 								if (key.isAcceptable()) {
 									long id = atomicLong.getAndIncrement();
 									SocketChannel socketChannel = serverSocketChannel.accept();
@@ -43,26 +46,32 @@ public class EchoServer {
 								}
 								if (key.isReadable()) {
 									try {
-										ByteBuffer buffer = ByteBuffer.allocate(10240);
+										buffer = ByteBuffer.allocate(10240);
 										SocketChannel socketChannel = ((SocketChannel) key.channel());
 										long id = ((long) key.attachment());
 										int length = socketChannel.read(buffer);
-										if (length < 0) {
+										if (length <= 0) {
 											key.cancel();
 											socketChannel.close();
 											continue;
 										}
-										buffer.flip();
-										byte[] data = new byte[length];
-										System.arraycopy(buffer.array(), 0, data, 0, length);
-										System.out.println(String.format("%d: %s", id, length));
-										socketChannel.write(buffer);
+										socketChannel.register(selector, SelectionKey.OP_WRITE, id);
 									} catch (Throwable t) {
-
 									}
 								}
+								if (key.isWritable()) {
+									try {
+										buffer.flip();
+										SocketChannel socketChannel = ((SocketChannel) key.channel());
+										long id = ((long) key.attachment());
+										socketChannel.write(buffer);
+										System.out.println(String.format("%d: %s %s", id, buffer.limit(), count.getAndIncrement()));
+										socketChannel.register(selector, SelectionKey.OP_READ, id);
+									} catch (Throwable t) {
+									}
+								}
+								keys.remove();
 							}
-							keys.clear();
 						}
 					} catch (IOException e) {
 					}
