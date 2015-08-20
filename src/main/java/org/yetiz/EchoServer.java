@@ -27,14 +27,13 @@ public class EchoServer {
 				public void run() {
 					AtomicLong atomicLong = new AtomicLong(0);
 					try {
-						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6655));
+						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 10315));
 						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 						while (true) {
 							if (selector.select(1000) == 0)
 								continue;
 							Set<SelectionKey> keys = selector.selectedKeys();
 							for (SelectionKey key : keys) {
-								keys.remove(key);
 								if (key.isAcceptable()) {
 									long id = atomicLong.getAndIncrement();
 									SocketChannel socketChannel = serverSocketChannel.accept();
@@ -56,13 +55,14 @@ public class EchoServer {
 										buffer.flip();
 										byte[] data = new byte[length];
 										System.arraycopy(buffer.array(), 0, data, 0, length);
-										System.out.println(String.format("%d: %s", id, new String(data)));
+										System.out.println(String.format("%d: %s", id, length));
 										socketChannel.write(buffer);
 									} catch (Throwable t) {
 
 									}
 								}
 							}
+							keys.clear();
 						}
 					} catch (IOException e) {
 					}
