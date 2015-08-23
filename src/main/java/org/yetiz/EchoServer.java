@@ -49,7 +49,7 @@ public class EchoServer {
 		@Override
 		protected void initChannel(SocketChannel ch) throws Exception {
 			ch.pipeline()
-				.addLast(loggingHandler)
+//				.addLast(loggingHandler)
 				.addLast(new EchoHandler())
 			;
 		}
