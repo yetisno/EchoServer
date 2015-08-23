@@ -22,7 +22,7 @@ public class EchoServer {
 		System.setProperty(YamlConfigurationFactory.CONFIGURATION_FILE_PROPERTY, "log.yaml");
 	}
 
-	private COLAInitializer initializer = new COLAInitializer();
+	private EchoInitializer initializer = new EchoInitializer();
 	private String ip = "0.0.0.0";
 	private int port = 10315;
 	private LoggingHandler loggingHandler = new LoggingHandler(LogLevel.INFO);
@@ -57,7 +57,7 @@ public class EchoServer {
 		}
 	}
 
-	class COLAInitializer extends io.netty.channel.ChannelInitializer<SocketChannel> {
+	class EchoInitializer extends io.netty.channel.ChannelInitializer<SocketChannel> {
 
 		@Override
 		protected void initChannel(SocketChannel ch) throws Exception {
