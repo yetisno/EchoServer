@@ -1,0 +1,31 @@
+Configuration:
+  status: error
+
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "[%d{ISO8601}][%5p][%t][%c][%X{MN}][%X{LN}]>>>>>%n%m%n<<<<<%n"
+
+    RollingRandomAccessFile:
+      name: File
+      fileName: logs/current.log
+      filePattern: "logs/archives/$${date:yyyy-MM}/%d{yyyy-MM-dd-HH}.%i.log.gz"
+      PatternLayout:
+        Pattern: "[%d{ISO8601}][%5p][%t][%c][%X{MN}][%X{LN}]>>>>>%n%m%n<<<<<%n"
+      Policies:
+        SizeBasedTriggeringPolicy:
+          size: "10MB"
+
+    Async:
+      name: Async
+      AppenderRef:
+      - ref: Console
+      - ref: File
+
+  Loggers:
+    Root:
+      level: error
+      AppenderRef:
+        ref: Async

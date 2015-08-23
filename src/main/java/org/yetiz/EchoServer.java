@@ -1,78 +1,56 @@
 package org.yetiz;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import org.apache.logging.log4j.core.config.yaml.YamlConfigurationFactory;
 
 /**
- * Created by yeti on 15/7/27.
+ * Created by yeti on 2015/7/16.
  */
 public class EchoServer {
-	Selector selector;
-	ServerSocketChannel serverSocketChannel;
+	static {
+		System.setProperty(YamlConfigurationFactory.CONFIGURATION_FILE_PROPERTY, "log.yaml");
+	}
+	private COLAInitializer initializer = new COLAInitializer();
+	private String ip = "0.0.0.0";
+	private int port = 10315;
+	private LoggingHandler loggingHandler = new LoggingHandler(LogLevel.INFO);
+	private int backlog = 10240;
 
 	public EchoServer() {
-		try {
-			selector = Selector.open();
-			serverSocketChannel = ServerSocketChannel.open();
-			serverSocketChannel.configureBlocking(false);
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					AtomicLong atomicLong = new AtomicLong(0);
-					try {
-						serverSocketChannel.bind(new InetSocketAddress("0.0.0.0", 6655));
-						serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-						while (true) {
-							if (selector.select(1000) == 0)
-								continue;
-							Set<SelectionKey> keys = selector.selectedKeys();
-							for (SelectionKey key : keys) {
-								keys.remove(key);
-								if (key.isAcceptable()) {
-									long id = atomicLong.getAndIncrement();
-									SocketChannel socketChannel = serverSocketChannel.accept();
-									socketChannel.configureBlocking(false);
-									socketChannel.register(selector, SelectionKey.OP_READ, id);
-									System.out.println(String.format("%d: Linked", id));
-								}
-								if (key.isReadable()) {
-									try {
-										ByteBuffer buffer = ByteBuffer.allocate(10240);
-										SocketChannel socketChannel = ((SocketChannel) key.channel());
-										long id = ((long) key.attachment());
-										int length = socketChannel.read(buffer);
-										if (length < 0) {
-											key.cancel();
-											socketChannel.close();
-											continue;
-										}
-										buffer.flip();
-										byte[] data = new byte[length];
-										System.arraycopy(buffer.array(), 0, data, 0, length);
-										System.out.println(String.format("%d: %s", id, new String(data)));
-										socketChannel.write(buffer);
-									} catch (Throwable t) {
+		init();
+	}
 
-									}
-								}
-							}
-						}
-					} catch (IOException e) {
-					}
-				}
-			}).start();
-		} catch (IOException e) {
+	private void init() {
+		try {
+			ServerBootstrap bootstrap = new ServerBootstrap();
+			Channel channel = bootstrap.group(new NioEventLoopGroup(), new NioEventLoopGroup())
+				.channel(NioServerSocketChannel.class)
+				.handler(new LoggingHandler(LogLevel.INFO))
+				.childHandler(initializer)
+				.option(ChannelOption.SO_BACKLOG, backlog)
+				.option(ChannelOption.SO_RCVBUF, 130172)
+				.childOption(ChannelOption.SO_KEEPALIVE, true)
+				.bind(ip, port).sync().channel().closeFuture().sync().channel();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 
-	public static void main(String... args) {
-		new EchoServer();
+	class COLAInitializer extends io.netty.channel.ChannelInitializer<SocketChannel> {
+
+		@Override
+		protected void initChannel(SocketChannel ch) throws Exception {
+			ch.pipeline()
+				.addLast(loggingHandler)
+				.addLast(new EchoHandler())
+			;
+		}
 	}
 }

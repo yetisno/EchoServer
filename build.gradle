@@ -4,13 +4,123 @@ apply plugin: 'idea'
 group 'org.yetiz'
 version '1.0'
 
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 repositories {
     mavenCentral()
+    flatDir {
+        dirs 'libs'
+    }
 }
 
 dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'org.apache.commons:commons-lang3:3.3.2'
+    compile 'commons-codec:commons-codec:1.10'
+    //for Logging - start
+    compile 'org.slf4j:slf4j-api:1.7.12'
+    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.3'
+    compile 'org.apache.logging.log4j:log4j-api:2.3'
+    compile 'org.apache.logging.log4j:log4j-core:2.3'
+    compile 'com.fasterxml.jackson.core:jackson-core:2.6.1'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.6.1'
+    compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.1'
+    //for Logging - end
+    compile 'org.javassist:javassist:3.20.0-GA'
+    compile 'io.netty:netty-all:4.0.30.Final'
     testCompile group: 'junit', name: 'junit', version: '4.11'
+}
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'net.sf.proguard:proguard-gradle:5.2.1'
+    }
+}
+
+def manifestMainClass = 'Launcher'
+def manifestImplementationVersion = "${version}"
+def manifestBuiltDate = System.currentTimeMillis()
+def manifestClassPath = configurations.compile.collect { "libs${File.separator}${it.getName()}" }.join(' ')
+
+task exportLib(type: Copy) {
+    into "$buildDir${File.separator}output${File.separator}libs"
+    from configurations.runtime
+}
+
+task addLogConfigure(type: Copy) {
+    into "$buildDir${File.separator}output${File.separator}"
+    from "$projectDir${File.separator}log.yaml"
+}
+
+jar {
+    dependsOn addLogConfigure
+    dependsOn exportLib
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task manifastJar(type: Jar, dependsOn: jar) {
+    classifier = 'standalone'
+    from files(sourceSets.main.output.classesDir)
+    from files(sourceSets.main.output.resourcesDir)
+    manifest {
+        attributes 'Main-Class': manifestMainClass,
+                'Implementation-Version': manifestImplementationVersion,
+                'Built-Date': manifestBuiltDate,
+                "Class-Path": manifestClassPath
+    }
+}
+
+task shrinkJar(type: proguard.gradle.ProGuardTask, dependsOn: manifastJar) {
+    ext {
+        javaBase = System.properties["java.home"]
+
+        javaRt = new StringBuilder(File.separator)
+                .append("lib")
+                .append(File.separator)
+                .append("rt.jar")
+                .toString()
+        if (System.properties["os.name"].toLowerCase().contains("mac")) {
+            if (!new File(javaBase + javaRt).exists()) {
+                javaRt = new StringBuilder(File.separator)
+                        .append("..")
+                        .append(File.separator)
+                        .append("Classes")
+                        .append(File.separator)
+                        .append("classes.jar")
+                        .toString()
+            }
+        }
+    }
+    libraryjars javaBase + javaRt
+    libraryjars configurations.compile
+
+    ext {
+        jar.classifier = "standalone"
+        injar = jar.archivePath
+        outDir = file("$buildDir${File.separator}output")
+        outjar = "${outDir}${File.separator}${jar.baseName}.jar"
+    }
+    outDir.mkdirs()
+
+    injars injar
+    outjars outjar
+    configuration 'proguard.pro'
+}
+
+task shrinkOutput(type: Jar, dependsOn: shrinkJar) {
+    classifier = 'shrink'
+    from zipTree(shrinkJar.outjar)
+}
+
+artifacts {
+    archives shrinkOutput
 }
