@@ -17,6 +17,7 @@ public class EchoServer {
 	static {
 		System.setProperty(YamlConfigurationFactory.CONFIGURATION_FILE_PROPERTY, "log.yaml");
 	}
+
 	private COLAInitializer initializer = new COLAInitializer();
 	private String ip = "0.0.0.0";
 	private int port = 10315;
