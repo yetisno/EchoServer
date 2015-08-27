@@ -24,7 +24,7 @@ public class EchoServer {
 
 	private EchoInitializer initializer = new EchoInitializer();
 	private String ip = "0.0.0.0";
-	private int port = 10315;
+	private int port = 11315;
 	private LoggingHandler loggingHandler = new LoggingHandler(LogLevel.INFO);
 	private int backlog = 10240;
 
